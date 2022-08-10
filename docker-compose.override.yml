@@ -1,0 +1,41 @@
+version: '3'
+
+services:
+  ### NGINX Server #########################################
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: ../../.docker/nginx/Dockerfile
+      args:
+        - CHANGE_SOURCE=${CHANGE_SOURCE}
+        - PHP_UPSTREAM_CONTAINER=${NGINX_PHP_UPSTREAM_CONTAINER}
+        - PHP_UPSTREAM_PORT=${NGINX_PHP_UPSTREAM_PORT}
+        - http_proxy
+        - https_proxy
+        - no_proxy
+    depends_on:
+      - php-fpm
+      - nuxt
+    labels:
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME}_frontend"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_http.rule=Host(`${APP_URL}`)"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_https.rule=Host(`${APP_URL}`)"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_https.tls=true"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_https.tls.certResolver=http"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_http.middlewares=https_redirect@file"
+
+  ### PROJECT> Nuxt #############################################
+  nuxt:
+    build:
+      context: ../.docker/nuxt
+      args:
+        - NUXT_PORT=5000
+    restart: always
+    tty: true
+    expose:
+      - "5000"
+    networks:
+      - frontend
+      - backend
+    volumes:
+      - ${APP_CODE_PATH_HOST}:/usr/src/app
